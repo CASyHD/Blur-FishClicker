@@ -13,6 +13,8 @@ use tauri::{AppHandle, Emitter, Listener, Manager};
 static LAST_ZONE_SHOW: Mutex<Option<Instant>> = Mutex::new(None);
 static CLICK_POINT_PICK_OVERLAY_ACTIVE: AtomicBool = AtomicBool::new(false);
 static CUSTOM_STOP_ZONE_PICK_OVERLAY_ACTIVE: AtomicBool = AtomicBool::new(false);
+/// The pixel trigger preview (lines, pixels, click positions) is on screen.
+static PIXEL_TRIGGER_OVERLAY_ACTIVE: AtomicBool = AtomicBool::new(false);
 pub static OVERLAY_THREAD_RUNNING: AtomicBool = AtomicBool::new(true);
 
 static LAST_ZONE_PAYLOAD: Mutex<Option<(VirtualScreenRect, Vec<u8>)>> = Mutex::new(None);
@@ -348,7 +350,10 @@ pub fn show_click_points_overlay(app: &AppHandle) -> AppResult<()> {
     }
 
     emit_click_points(&window, bounds, &points, false);
-    if points.is_empty() && !CLICK_POINT_PICK_OVERLAY_ACTIVE.load(Ordering::SeqCst) {
+    if points.is_empty()
+        && !CLICK_POINT_PICK_OVERLAY_ACTIVE.load(Ordering::SeqCst)
+        && !PIXEL_TRIGGER_OVERLAY_ACTIVE.load(Ordering::SeqCst)
+    {
         *LAST_ZONE_SHOW.lock().unwrap_or_else(poisoned_inner) = None;
         hide_overlay_window(&window);
     } else {
@@ -506,6 +511,7 @@ fn emit_click_points(
 pub fn check_auto_hide(app: &AppHandle) {
     if CLICK_POINT_PICK_OVERLAY_ACTIVE.load(Ordering::SeqCst)
         || CUSTOM_STOP_ZONE_PICK_OVERLAY_ACTIVE.load(Ordering::SeqCst)
+        || PIXEL_TRIGGER_OVERLAY_ACTIVE.load(Ordering::SeqCst)
     {
         return;
     }
@@ -521,6 +527,50 @@ pub fn check_auto_hide(app: &AppHandle) {
             }
         }
     }
+}
+
+/// Shows (`Some`) or clears (`None`) the pixel trigger preview on the overlay.
+///
+/// The payload is built by the Trigger panel in absolute virtual-screen
+/// coordinates; the overlay subtracts `originX`/`originY` itself.
+#[tauri::command]
+pub fn set_pixel_trigger_overlay(app: AppHandle, data: Option<serde_json::Value>) -> AppResult<()> {
+    let window = app
+        .get_webview_window("overlay")
+        .ok_or_else(|| AppError::OverlayNotFound)?;
+
+    let Some(mut data) = data else {
+        let was_active = PIXEL_TRIGGER_OVERLAY_ACTIVE.swap(false, Ordering::SeqCst);
+        let _ = window.emit("pixel-trigger-data", serde_json::Value::Null);
+        let other_overlay_visible = LAST_ZONE_SHOW
+            .lock()
+            .unwrap_or_else(poisoned_inner)
+            .is_some()
+            || CLICK_POINT_PICK_OVERLAY_ACTIVE.load(Ordering::SeqCst)
+            || CUSTOM_STOP_ZONE_PICK_OVERLAY_ACTIVE.load(Ordering::SeqCst);
+        if was_active && !other_overlay_visible {
+            hide_overlay_window(&window);
+        }
+        return Ok(());
+    };
+
+    let bounds = current_virtual_screen_rect()
+        .ok_or_else(|| AppError::State("Virtual screen bounds not available".into()))?;
+    if let Some(object) = data.as_object_mut() {
+        object.insert("originX".into(), bounds.left.into());
+        object.insert("originY".into(), bounds.top.into());
+    }
+
+    PIXEL_TRIGGER_OVERLAY_ACTIVE.store(true, Ordering::SeqCst);
+    #[cfg(target_os = "windows")]
+    {
+        if !window.is_visible().unwrap_or(false) {
+            sync_overlay_bounds(&window)?;
+            show_overlay_window(&window)?;
+        }
+    }
+    let _ = window.emit("pixel-trigger-data", &data);
+    Ok(())
 }
 
 #[tauri::command]

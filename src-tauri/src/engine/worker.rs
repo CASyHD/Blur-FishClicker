@@ -134,6 +134,10 @@ impl RunControl {
             == self.expected_generation
     }
 
+    pub fn app(&self) -> &AppHandle {
+        &self.app
+    }
+
     pub fn is_active(&self) -> bool {
         let state = self.app.state::<ClickerState>();
         state.running.load(Ordering::SeqCst)
@@ -422,6 +426,10 @@ fn interval_secs_from_settings(settings: &ClickerSettings) -> AppResult<f64> {
     })
 }
 
+/// Upper bound for the start delay (mirrors the frontend limit).
+const MAX_START_DELAY_MS: u32 = 60_000;
+pub(crate) const START_DELAY_CANCELLED_REASON: &str = "Stopped during start delay";
+
 fn max_double_click_gap_ms() -> u32 {
     let system_timeout_ms = unsafe { GetDoubleClickTime() };
     ((system_timeout_ms as f64) * 0.9).floor() as u32
@@ -567,6 +575,8 @@ pub fn build_config(settings: &ClickerSettings) -> AppResult<ClickerConfig> {
             })
             .collect(),
         task_switcher_stop_enabled: settings.task_switcher_stop_enabled,
+        start_delay_ms: u64::from(settings.start_delay_ms.min(MAX_START_DELAY_MS)),
+        pixel_trigger: super::pixel_trigger::config_from_settings(settings)?,
     })
 }
 
@@ -1140,6 +1150,25 @@ impl Drop for HeldKey {
 
 pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
     CLICK_COUNT.store(0, Ordering::SeqCst);
+
+    // Optional start delay: gives the user time to move the cursor / focus the
+    // target window. The run can still be cancelled with the hotkey meanwhile.
+    if config.start_delay_ms > 0 {
+        sleep_interruptible(
+            Duration::from_millis(config.start_delay_ms),
+            &control,
+            &|| false,
+        );
+        if !control.is_active() {
+            return RunOutcome {
+                stop_reason: String::from(START_DELAY_CANCELLED_REASON),
+                click_count: 0,
+                elapsed_secs: 0.0,
+                avg_cpu: 0.0,
+            };
+        }
+    }
+
     process::reset_foreground_unknown_grace();
     reset_cursor_unreadable_grace();
     let _timer = TimerResolutionGuard::new();
@@ -1147,6 +1176,19 @@ pub fn start_clicker(config: ClickerConfig, control: RunControl) -> RunOutcome {
     let cycle_freq = measure_cycle_freq();
     let cpu_start = thread_cycles();
     let start_time = Instant::now();
+
+    if let Some(trigger) = config.pixel_trigger.as_ref() {
+        let (click_count, stop_reason) =
+            super::pixel_trigger::run_trigger_loop(&config, trigger, &control, start_time);
+        let elapsed = start_time.elapsed().as_secs_f64();
+        return RunOutcome {
+            stop_reason,
+            click_count,
+            elapsed_secs: elapsed,
+            avg_cpu: cpu_usage(cpu_start, cycle_freq, elapsed),
+        };
+    }
+
     let mut rng = SmallRng::new();
     let ctx = ClickerContext::new(&config);
     let mut st = LoopState::new(&config);
@@ -1427,7 +1469,27 @@ mod tests {
 
             process_list_entries: Vec::new(),
             task_switcher_stop_enabled: false,
+            start_delay_ms: 0,
+            pixel_trigger: None,
         }
+    }
+
+    #[test]
+    fn start_delay_defaults_to_off() {
+        let config = build_config(&sample_settings()).expect("default settings should build");
+        assert_eq!(config.start_delay_ms, 0);
+    }
+
+    #[test]
+    fn start_delay_is_passed_through_and_capped() {
+        let mut settings = sample_settings();
+        settings.start_delay_ms = 3_000;
+        let config = build_config(&settings).expect("start delay settings should build");
+        assert_eq!(config.start_delay_ms, 3_000);
+
+        settings.start_delay_ms = u32::MAX;
+        let config = build_config(&settings).expect("oversized start delay should build");
+        assert_eq!(config.start_delay_ms, u64::from(MAX_START_DELAY_MS));
     }
 
     #[test]

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { logDiagnostic } from "../../../../diagnostics";
-import { DEFAULT_MAX_CLICK_SPEED } from "../../../../settingsSchema";
+import {
+  DEFAULT_MAX_CLICK_SPEED,
+  SETTINGS_LIMITS,
+} from "../../../../settingsSchema";
 import type { Settings } from "../../../../store";
 import type { RestartOutcome } from "../../../../restart";
 import { NumInput } from "../../advanced/sections/shared";
@@ -32,6 +35,10 @@ const RADIUS_UNIT_STYLE: CSSProperties = {
 };
 const CLICKS_INPUT_STYLE: CSSProperties = {
   width: "7ch",
+  textAlign: "right",
+};
+const DELAY_INPUT_STYLE: CSSProperties = {
+  width: "6ch",
   textAlign: "right",
 };
 const RADIUS_INPUT_STYLE: CSSProperties = {
@@ -135,6 +142,11 @@ export default function BehaviorSection({
         taskSwitcherStopEnabled: !settings.taskSwitcherStopEnabled,
       }),
     [update, settings.taskSwitcherStopEnabled],
+  );
+
+  const handleStartDelayChange = useCallback(
+    (value: number) => update({ startDelayMs: value }),
+    [update],
   );
 
   const handleNewClickPointClicksChange = useCallback(
@@ -344,6 +356,27 @@ export default function BehaviorSection({
             >
               <span className="settings-toggle-knob" />
             </button>
+          </div>
+        </div>
+
+        <div className="settings-row">
+          <div className="settings-label-group">
+            <span className="settings-label">Start Delay</span>
+            <span className="settings-sublabel">
+              Wait before the first click. Press the hotkey again to cancel. 0 =
+              off.
+            </span>
+          </div>
+          <div className="adv-numbox-sm" style={UNIT_ROW_STYLE}>
+            <NumInput
+              hoverWheel={false}
+              value={settings.startDelayMs}
+              min={SETTINGS_LIMITS.startDelayMs.min}
+              max={SETTINGS_LIMITS.startDelayMs.max}
+              onChange={handleStartDelayChange}
+              style={DELAY_INPUT_STYLE}
+            />
+            <span className="adv-unit">ms</span>
           </div>
         </div>
 

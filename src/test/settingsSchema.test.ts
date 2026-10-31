@@ -555,3 +555,154 @@ describe("interface scale setting", () => {
     expect("uiScale" in snapshot).toBe(false);
   });
 });
+
+describe("pixel trigger settings", () => {
+  it("defaults to off, line mode, nothing configured", () => {
+    const defaults = createDefaultSettings(VERSION);
+    expect(defaults.pixelTriggerEnabled).toBe(false);
+    expect(defaults.pixelTriggerMode).toBe("line");
+    expect(defaults.pixelTriggerPoints).toEqual([]);
+    expect(defaults.pixelTriggerActions).toEqual([]);
+    expect(defaults.pixelTriggerCooldownMs).toBe(1000);
+    expect(defaults.startDelayMs).toBe(0);
+  });
+
+  it("sanitizes malformed pixel trigger payloads", () => {
+    const sanitized = sanitizeSettings(
+      {
+        pixelTriggerMode: "bogus",
+        pixelTriggerLine: {
+          x1: 10.7,
+          x2: "x",
+          anchorY: 5,
+          checkY: 9,
+          anchorColor: "white",
+          anchorTolerance: 900,
+          checkColor: "#06C105",
+          checkTolerance: -3,
+        },
+        pixelTriggerPoints: [
+          null,
+          { x: 1, y: 2, color: "#ABCDEF", tolerance: 12, negate: "yes" },
+        ],
+        pixelTriggerActions: Array.from({ length: 40 }, (_, i) => ({
+          id: `a${i}`,
+          x: i,
+          y: i,
+          delayMs: 10_000_000,
+        })),
+        pixelTriggerCooldownMs: -1,
+      } as unknown as Partial<Settings>,
+      VERSION,
+    );
+
+    expect(sanitized.pixelTriggerMode).toBe("line");
+    expect(sanitized.pixelTriggerLine).toEqual({
+      x1: 10,
+      x2: 0,
+      anchorY: 5,
+      checkY: 9,
+      anchorColor: "#ffffff",
+      anchorTolerance: 255,
+      checkColor: "#06c105",
+      checkTolerance: 0,
+    });
+    expect(sanitized.pixelTriggerPoints).toHaveLength(1);
+    expect(sanitized.pixelTriggerPoints[0]).toMatchObject({
+      x: 1,
+      y: 2,
+      color: "#abcdef",
+      tolerance: 12,
+      negate: false,
+    });
+    expect(sanitized.pixelTriggerPoints[0].id).toBeTruthy();
+    expect(sanitized.pixelTriggerActions).toHaveLength(16);
+    expect(sanitized.pixelTriggerActions[0].delayMs).toBe(600000);
+    expect(sanitized.pixelTriggerCooldownMs).toBe(0);
+  });
+
+  it("saves the pixel trigger into presets", () => {
+    const settings: Settings = {
+      ...createDefaultSettings(VERSION),
+      pixelTriggerEnabled: true,
+      pixelTriggerMode: "points",
+      pixelTriggerPoints: [
+        { id: "p1", x: 3, y: 4, color: "#112233", tolerance: 5, negate: true },
+      ],
+    };
+    const snapshot = buildPresetSnapshot(settings);
+    const restored = sanitizePresetSnapshot(
+      snapshot,
+      buildPresetSnapshot(createDefaultSettings(VERSION)),
+    );
+    expect(restored.pixelTriggerEnabled).toBe(true);
+    expect(restored.pixelTriggerMode).toBe("points");
+    expect(restored.pixelTriggerPoints).toEqual(settings.pixelTriggerPoints);
+  });
+
+  it("migrates the old single recast click into a step", () => {
+    const sanitized = sanitizeSettings(
+      {
+        pixelTriggerRecast: {
+          enabled: true,
+          afterMatches: 99999,
+          delayMs: 1200,
+          x: 12.9,
+          y: 40,
+          button: "Thumb",
+          idleTimeoutMs: 15000,
+        },
+      } as unknown as Partial<Settings>,
+      VERSION,
+    );
+    const recast = sanitized.pixelTriggerRecast;
+    expect(recast.enabled).toBe(true);
+    expect(recast.afterMatches).toBe(9999);
+    expect(recast.idleTimeoutMs).toBe(15000);
+    expect(recast.steps).toHaveLength(1);
+    expect(recast.steps[0]).toMatchObject({
+      x: 12,
+      y: 40,
+      button: "Right",
+      delayMs: 1200,
+      delayMaxMs: 1200,
+    });
+    expect(createDefaultSettings(VERSION).pixelTriggerRecast.steps).toEqual([]);
+  });
+
+  it("keeps a recast sequence and caps it at 8 steps", () => {
+    const sanitized = sanitizeSettings(
+      {
+        pixelTriggerRecast: {
+          enabled: true,
+          steps: Array.from({ length: 12 }, (_, i) => ({
+            id: `s${i}`,
+            x: i + 1,
+            y: 5,
+            button: i === 0 ? "Left" : "Right",
+            delayMs: -1,
+            delayMaxMs: 300,
+          })),
+        },
+      } as unknown as Partial<Settings>,
+      VERSION,
+    );
+    const steps = sanitized.pixelTriggerRecast.steps;
+    expect(steps).toHaveLength(8);
+    expect(steps[0]).toEqual({
+      id: "s0",
+      x: 1,
+      y: 5,
+      button: "Left",
+      delayMs: 0,
+      delayMaxMs: 300,
+    });
+    expect(steps[1].button).toBe("Right");
+  });
+
+  it("restores the trigger tab as last panel", () => {
+    expect(sanitizeSettings({ lastPanel: "trigger" }, VERSION).lastPanel).toBe(
+      "trigger",
+    );
+  });
+});

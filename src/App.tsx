@@ -90,9 +90,13 @@ const SettingsPanel = lazy(
 const ClickPointsPanel = lazy(
   () => import("./components/panels/click-points/ClickPointsPanel"),
 );
+const TriggerPanel = lazy(
+  () => import("./components/panels/trigger/TriggerPanel"),
+);
 const TitleBar = lazy(() => import("./components/TitleBar"));
 const StatusBar = lazy(() => import("./components/StatusBar"));
-export type Tab = "simple" | "advanced" | "zones" | "settings" | "click-points";
+export type Tab =
+  "simple" | "advanced" | "zones" | "settings" | "click-points" | "trigger";
 
 const BACKEND_SETTINGS_SCHEMA_VERSION = 11;
 const MAX_DROPDOWN_OVERFLOW_BOTTOM = 220;
@@ -114,6 +118,7 @@ function getPanelSize(tab: Tab, hasUpdate: boolean, firstRunOpen: boolean) {
   if (tab === "settings") return { width: 700, height: 720 + extra };
   if (tab === "zones") return { width: 700, height: 700 + extra };
   if (tab === "click-points") return { width: 550, height: 600 + extra };
+  if (tab === "trigger") return { width: 820, height: 680 + extra };
   return { width: 900, height: 469 + extra };
 }
 
@@ -2071,6 +2076,13 @@ export default function App() {
               running={status.running}
               activeClickPointIndex={status.activeClickPointIndex}
               activeClickPointTick={status.activeClickPointTick}
+            />
+          )}
+          {tab === "trigger" && (
+            <TriggerPanel
+              settings={settings}
+              update={updateSettings}
+              running={status.running}
             />
           )}
           {tab === "zones" && (

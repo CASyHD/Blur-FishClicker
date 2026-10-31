@@ -14,6 +14,7 @@ import {
   LayersIcon,
   LayoutGridIcon,
   MouseIcon,
+  ScanLineIcon,
 } from "@animateicons/react/lucide";
 import type { AnimatedIcon } from "./animatedIcon";
 import type { Tab } from "../App";
@@ -129,6 +130,14 @@ const TAB_ITEMS: readonly TabItem[] = [
     activeBg: "hsla(180, 75%, 40%, 0.14)",
     activeFocusRing: "hsla(180, 75%, 40%, 0.35)",
     icon: CircleDotIcon,
+  },
+  {
+    value: "trigger",
+    label: "Trigger",
+    color: "hsl(130 60% 45%)",
+    activeBg: "hsla(130, 60%, 45%, 0.14)",
+    activeFocusRing: "hsla(130, 60%, 45%, 0.35)",
+    icon: ScanLineIcon,
   },
 ] as const;
 

@@ -482,6 +482,36 @@ pub struct CursorPoint {
     pub y: f64,
 }
 
+/// Cursor position plus the colour under it (pixel trigger capture tool).
+#[tauri::command]
+pub fn pixel_trigger_sample_cursor(
+    app: AppHandle,
+) -> Option<crate::engine::pixel_trigger::PixelSample> {
+    crate::engine::pixel_trigger::sample_at_cursor(&app)
+}
+
+/// Position plus colour at a screen point picked with the right-click picker.
+#[tauri::command]
+pub fn pixel_trigger_sample_at(
+    app: AppHandle,
+    x: i32,
+    y: i32,
+) -> Option<crate::engine::pixel_trigger::PixelSample> {
+    crate::engine::pixel_trigger::sample_at(&app, x, y)
+}
+
+/// One live evaluation of the configured pixel trigger rule (UI preview).
+#[tauri::command]
+pub fn pixel_trigger_probe(app: AppHandle) -> crate::engine::pixel_trigger::PixelTriggerProbe {
+    let settings = app
+        .state::<ClickerState>()
+        .settings
+        .lock()
+        .unwrap_or_else(poisoned_inner)
+        .clone();
+    crate::engine::pixel_trigger::probe(&settings)
+}
+
 #[tauri::command]
 pub fn get_cursor_position(window: tauri::WebviewWindow) -> Option<CursorPoint> {
     #[cfg(target_os = "windows")]

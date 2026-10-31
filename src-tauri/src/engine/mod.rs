@@ -2,6 +2,8 @@ pub mod cycle;
 pub mod failsafe;
 pub mod keyboard;
 pub mod mouse;
+pub mod pixel_match;
+pub mod pixel_trigger;
 pub mod process;
 pub mod rng;
 pub mod stats;
@@ -94,6 +96,9 @@ pub struct ClickerConfig {
     pub process_list_mode: ProcessListMode,
     pub process_list_entries: Vec<ProcessListEntry>,
     pub task_switcher_stop_enabled: bool,
+    pub start_delay_ms: u64,
+    /// `Some` when the pixel trigger replaces the normal click cadence.
+    pub pixel_trigger: Option<pixel_trigger::PixelTriggerConfig>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -139,12 +139,86 @@
             animation: fadeOut 5s ease forwards;
         }
 
+        /* ---- Pixel trigger preview ----
+           Nothing is ever drawn ON a sampled pixel row/pixel, otherwise the
+           overlay could feed back into the detection. Lines are shown as a
+           band (one stroke above, one below), pixels as hollow rings. */
+        .pt-stroke {
+            position: absolute;
+            height: 2px;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.65);
+            border-radius: 1px;
+        }
+        .pt-cap {
+            position: absolute;
+            width: 0;
+            border-left: 2px dashed rgba(255, 255, 255, 0.75);
+            filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9));
+        }
+        .pt-label {
+            position: absolute;
+            font-family: "RobotoFlex", sans-serif;
+            font-size: 12px;
+            font-weight: 800;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.72);
+            border-radius: 4px;
+            padding: 1px 5px;
+            white-space: nowrap;
+            transform: translateY(-50%);
+        }
+        .pt-tick {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+        }
+        .pt-ring {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(0, 0, 0, 0.7);
+        }
+        .pt-click {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid #ffc400;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7);
+        }
+        .pt-click::before, .pt-click::after {
+            content: "";
+            position: absolute;
+            background: #ffc400;
+        }
+        .pt-click::before { left: 9px; top: -7px; width: 2px; height: 32px; }
+        .pt-click::after { top: 9px; left: -7px; height: 2px; width: 32px; }
+        .pt-click.pt-recast { border-color: #c084fc; }
+        .pt-click.pt-recast::before, .pt-click.pt-recast::after { background: #c084fc; }
+        .pt-status {
+            position: absolute;
+            font-family: "RobotoFlex", sans-serif;
+            font-size: 12px;
+            font-weight: 800;
+            border-radius: 999px;
+            padding: 2px 8px;
+            transform: translateY(-50%);
+            color: #fff;
+            background: rgba(0, 0, 0, 0.72);
+        }
+        .pt-status.on { background: rgb(34, 160, 60); }
+
     </style>
 </head>
 <body>
     <div id="overlay-container">
         <div id="zone-layer" class="overlay-layer"></div>
         <div id="click-points-layer" class="overlay-layer"></div>
+        <div id="pixel-trigger-layer" class="overlay-layer"></div>
         <div id="pick-prompt" class="overlay-prompt">
             Right click to add point.
             <span>Shift + right click to add multiple.</span>
@@ -161,6 +235,7 @@
     <script>
         const zoneLayer = document.getElementById('zone-layer');
         const clickPointsLayer = document.getElementById('click-points-layer');
+        const pixelTriggerLayer = document.getElementById('pixel-trigger-layer');
         const pickPrompt = document.getElementById('pick-prompt');
         const stopZonePrompt = document.getElementById('stop-zone-prompt');
         let pickModeActive = false;
@@ -213,6 +288,10 @@
 
                     tauriEvent.listen('custom-stop-zone-clear-preview', () => {
                         clearStopZonePreview();
+                    }),
+
+                    tauriEvent.listen('pixel-trigger-data', (event) => {
+                        renderPixelTrigger(event.payload);
                     })
                 ]);
             } catch (error) {
@@ -436,6 +515,102 @@
             dot.style.top = (point.y / scale - 5) + 'px';
             dot.style.background = color;
             clickPointsLayer.appendChild(dot);
+        }
+
+        function ptColor(value, fallback) {
+            return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
+        }
+
+        function ptNum(value) {
+            return typeof value === 'number' && Number.isFinite(value) ? value : null;
+        }
+
+        function ptEl(className, styles, text) {
+            const el = document.createElement('div');
+            el.className = className;
+            Object.assign(el.style, styles);
+            if (text !== undefined) el.textContent = text;
+            pixelTriggerLayer.appendChild(el);
+            return el;
+        }
+
+        function renderPixelTrigger(data) {
+            pixelTriggerLayer.innerHTML = '';
+            if (!data || typeof data !== 'object') return;
+
+            const scale = window.devicePixelRatio || 1;
+            const ox = ptNum(data.originX) || 0;
+            const oy = ptNum(data.originY) || 0;
+            const X = (v) => (v - ox) / scale;
+            const Y = (v) => (v - oy) / scale;
+            const GAP = 4; // css px between sampled row and drawn stroke
+            const matched = Boolean(data.matched);
+
+            const line = data.line;
+            if (data.mode === 'line' && line) {
+                const x1 = ptNum(line.x1), x2 = ptNum(line.x2);
+                const ay = ptNum(line.anchorY), cy = ptNum(line.checkY);
+                if (x1 !== null && x2 !== null && ay !== null && cy !== null && x1 !== x2) {
+                    const left = X(Math.min(x1, x2));
+                    const right = X(Math.max(x1, x2)) + 1 / scale;
+                    const width = right - left;
+                    const bands = [
+                        [ay, ptColor(line.anchorColor, '#ffffff'), 'A'],
+                        [cy, ptColor(line.checkColor, '#06c105'), 'B'],
+                    ];
+                    for (const [y, color, label] of bands) {
+                        const top = Y(y);
+                        ptEl('pt-stroke', { left: left + 'px', top: (top - GAP - 2) + 'px', width: width + 'px', background: color });
+                        ptEl('pt-stroke', { left: left + 'px', top: (top + GAP + 1 / scale) + 'px', width: width + 'px', background: color });
+                        ptEl('pt-label', { left: (left - 26) + 'px', top: top + 'px' }, label);
+                    }
+                    const minY = Y(Math.min(ay, cy)) - GAP - 10;
+                    const maxY = Y(Math.max(ay, cy)) + GAP + 10;
+                    for (const x of [left - 2, right]) {
+                        ptEl('pt-cap', { left: (x - 1) + 'px', top: minY + 'px', height: (maxY - minY) + 'px' });
+                    }
+                    const anchorX = ptNum(data.anchorX);
+                    if (anchorX !== null) {
+                        const tickColor = matched ? 'rgb(34, 200, 70)' : 'rgb(255, 150, 0)';
+                        ptEl('pt-tick', { left: (X(anchorX) - 6) + 'px', top: (minY - 8) + 'px', borderTop: '8px solid ' + tickColor });
+                        ptEl('pt-tick', { left: (X(anchorX) - 6) + 'px', top: maxY + 'px', borderBottom: '8px solid ' + tickColor });
+                    }
+                    ptEl('pt-status' + (matched ? ' on' : ''), { left: (right + 10) + 'px', top: ((minY + maxY) / 2) + 'px' }, matched ? 'MATCH' : 'no match');
+                }
+            }
+
+            if (data.mode === 'points' && Array.isArray(data.points)) {
+                data.points.forEach((p, i) => {
+                    const x = ptNum(p && p.x), y = ptNum(p && p.y);
+                    if (x === null || y === null) return;
+                    const ring = p.matched ? 'rgb(34, 200, 70)' : ptColor(p.color, '#ffffff');
+                    ptEl('pt-ring', { left: (X(x) - 9) + 'px', top: (Y(y) - 9) + 'px', borderColor: ring });
+                    ptEl('pt-label', { left: (X(x) + 12) + 'px', top: Y(y) + 'px' }, (p.negate ? '!' : '') + (i + 1));
+                });
+            }
+
+            if (Array.isArray(data.actions)) {
+                data.actions.forEach((a, i) => {
+                    const x = ptNum(a && a.x), y = ptNum(a && a.y);
+                    if (x === null || y === null) return;
+                    ptEl('pt-click', { left: (X(x) - 11) + 'px', top: (Y(y) - 11) + 'px' });
+                    const delay = ptNum(a.delayMs);
+                    ptEl('pt-label', { left: (X(x) + 16) + 'px', top: (Y(y) - 14) + 'px' }, 'Click ' + (i + 1) + (delay ? ' · ' + delay + ' ms' : ''));
+                });
+            }
+
+            if (Array.isArray(data.recast)) {
+                data.recast.forEach((step) => {
+                    const x = ptNum(step && step.x), y = ptNum(step && step.y);
+                    if (x === null || y === null) return;
+                    ptEl('pt-click pt-recast', { left: (X(x) - 11) + 'px', top: (Y(y) - 11) + 'px' });
+                    const index = ptNum(step.index) || 0;
+                    const button = typeof step.button === 'string' ? step.button.slice(0, 6) : '';
+                    const delay = ptNum(step.delayMs);
+                    ptEl('pt-label', { left: (X(x) + 16) + 'px', top: (Y(y) - 14) + 'px' },
+                        'Recast ' + index + ' · ' + button + (delay ? ' · ' + delay + ' ms' : ''));
+                });
+            }
         }
 
         function stableDotColor(point, index) {

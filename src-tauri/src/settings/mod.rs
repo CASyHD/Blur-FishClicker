@@ -65,6 +65,181 @@ fn default_indicator_background_strength() -> u32 {
 
 use crate::engine::ProcessListEntry;
 
+fn default_pixel_trigger_mode() -> String {
+    "line".to_string()
+}
+
+fn default_pixel_trigger_hold_ms() -> u32 {
+    35
+}
+
+fn default_pixel_trigger_hold_max_ms() -> u32 {
+    60
+}
+
+fn default_pixel_trigger_cooldown_ms() -> u32 {
+    1_000
+}
+
+fn default_white() -> String {
+    "#ffffff".to_string()
+}
+
+fn default_green() -> String {
+    "#06c105".to_string()
+}
+
+fn default_anchor_tolerance() -> u32 {
+    30
+}
+
+fn default_check_tolerance() -> u32 {
+    40
+}
+
+/// Line mode of the pixel trigger: anchor colour on line A, check colour on
+/// line B in the same column. Coordinates are virtual-screen pixels.
+#[derive(Clone, serde::Deserialize, serde::Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PixelTriggerLineSettings {
+    #[serde(default)]
+    pub x1: i32,
+    #[serde(default)]
+    pub x2: i32,
+    #[serde(default)]
+    pub anchor_y: i32,
+    #[serde(default)]
+    pub check_y: i32,
+    #[serde(default = "default_white")]
+    pub anchor_color: String,
+    #[serde(default = "default_anchor_tolerance")]
+    pub anchor_tolerance: u32,
+    #[serde(default = "default_green")]
+    pub check_color: String,
+    #[serde(default = "default_check_tolerance")]
+    pub check_tolerance: u32,
+}
+
+impl Default for PixelTriggerLineSettings {
+    fn default() -> Self {
+        Self {
+            x1: 0,
+            x2: 0,
+            anchor_y: 0,
+            check_y: 0,
+            anchor_color: default_white(),
+            anchor_tolerance: default_anchor_tolerance(),
+            check_color: default_green(),
+            check_tolerance: default_check_tolerance(),
+        }
+    }
+}
+
+fn default_recast_after_matches() -> u32 {
+    3
+}
+
+fn default_recast_delay_ms() -> u32 {
+    1_500
+}
+
+fn default_recast_button() -> String {
+    "Right".to_string()
+}
+
+fn default_recast_step_button() -> String {
+    "Left".to_string()
+}
+
+/// One click of the recast sequence.
+#[derive(Clone, serde::Deserialize, serde::Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PixelTriggerRecastStepSettings {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub x: i32,
+    #[serde(default)]
+    pub y: i32,
+    #[serde(default = "default_recast_step_button")]
+    pub button: String,
+    #[serde(default)]
+    pub delay_ms: u32,
+    #[serde(default)]
+    pub delay_max_ms: u32,
+}
+
+/// Recast sequence of the pixel trigger. `x`/`y`/`button`/`delay*` are the
+/// pre-sequence single-click fields, only read when `steps` is empty.
+#[derive(Clone, serde::Deserialize, serde::Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PixelTriggerRecastSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_recast_after_matches")]
+    pub after_matches: u32,
+    #[serde(default = "default_recast_delay_ms")]
+    pub delay_ms: u32,
+    /// Upper bound when timings are randomized.
+    #[serde(default)]
+    pub delay_max_ms: u32,
+    #[serde(default)]
+    pub x: i32,
+    #[serde(default)]
+    pub y: i32,
+    #[serde(default = "default_recast_button")]
+    pub button: String,
+    #[serde(default)]
+    pub idle_timeout_ms: u32,
+    #[serde(default)]
+    pub steps: Vec<PixelTriggerRecastStepSettings>,
+}
+
+impl Default for PixelTriggerRecastSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            after_matches: default_recast_after_matches(),
+            delay_ms: default_recast_delay_ms(),
+            delay_max_ms: 0,
+            x: 0,
+            y: 0,
+            button: default_recast_button(),
+            idle_timeout_ms: 0,
+            steps: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PixelTriggerPointSettings {
+    #[serde(default)]
+    pub id: String,
+    pub x: i32,
+    pub y: i32,
+    #[serde(default = "default_white")]
+    pub color: String,
+    #[serde(default = "default_anchor_tolerance")]
+    pub tolerance: u32,
+    #[serde(default)]
+    pub negate: bool,
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PixelTriggerActionSettings {
+    #[serde(default)]
+    pub id: String,
+    pub x: i32,
+    pub y: i32,
+    #[serde(default)]
+    pub delay_ms: u32,
+    /// Upper bound when timings are randomized.
+    #[serde(default)]
+    pub delay_max_ms: u32,
+}
+
 #[derive(Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct StopZoneConfig {
@@ -144,9 +319,36 @@ pub struct ClickerSettings {
     pub process_list_mode: String,
     pub process_list_entries: Vec<ProcessListEntry>,
 
+    #[serde(default)]
+    pub pixel_trigger_enabled: bool,
+    #[serde(default = "default_pixel_trigger_mode")]
+    pub pixel_trigger_mode: String,
+    #[serde(default)]
+    pub pixel_trigger_line: PixelTriggerLineSettings,
+    #[serde(default)]
+    pub pixel_trigger_points: Vec<PixelTriggerPointSettings>,
+    #[serde(default)]
+    pub pixel_trigger_actions: Vec<PixelTriggerActionSettings>,
+    #[serde(default = "default_pixel_trigger_cooldown_ms")]
+    pub pixel_trigger_cooldown_ms: u32,
+    #[serde(default)]
+    pub pixel_trigger_recast: PixelTriggerRecastSettings,
+    /// Randomize waits and click hold within their min..max ranges.
+    #[serde(default)]
+    pub pixel_trigger_randomize: bool,
+    #[serde(default)]
+    pub pixel_trigger_cooldown_max_ms: u32,
+    #[serde(default = "default_pixel_trigger_hold_ms")]
+    pub pixel_trigger_hold_ms: u32,
+    #[serde(default = "default_pixel_trigger_hold_max_ms")]
+    pub pixel_trigger_hold_max_ms: u32,
+
     // settings-only fields
     #[serde(default = "default_true")]
     pub task_switcher_stop_enabled: bool,
+    /// Delay in milliseconds between activating the clicker and the first click. 0 = off.
+    #[serde(default)]
+    pub start_delay_ms: u32,
     pub hotkey: String,
     pub rate_input_mode: String,
     pub duration_hours: u32,
@@ -253,8 +455,21 @@ impl Default for ClickerSettings {
             process_list_mode: "whitelist".to_string(),
             process_list_entries: Vec::new(),
 
+            pixel_trigger_enabled: false,
+            pixel_trigger_mode: default_pixel_trigger_mode(),
+            pixel_trigger_line: PixelTriggerLineSettings::default(),
+            pixel_trigger_points: Vec::new(),
+            pixel_trigger_actions: Vec::new(),
+            pixel_trigger_cooldown_ms: default_pixel_trigger_cooldown_ms(),
+            pixel_trigger_recast: PixelTriggerRecastSettings::default(),
+            pixel_trigger_randomize: false,
+            pixel_trigger_cooldown_max_ms: 0,
+            pixel_trigger_hold_ms: default_pixel_trigger_hold_ms(),
+            pixel_trigger_hold_max_ms: default_pixel_trigger_hold_max_ms(),
+
             // settings-only defaults
             task_switcher_stop_enabled: true,
+            start_delay_ms: 0,
             hotkey: "ctrl+y".to_string(),
             rate_input_mode: "rate".to_string(),
             duration_hours: 0,
@@ -314,6 +529,15 @@ mod limits {
     pub const STOP_ZONE_SIZE: (i32, i32) = (1, 99_999);
     pub const STOP_ZONE_ACTIONS: [&str; 3] = ["stop", "pause", "start"];
     pub const STOP_ZONE_MAX_COUNT: usize = 64;
+    pub const START_DELAY_MS: (u32, u32) = (0, 60_000);
+    pub const PIXEL_TOLERANCE: (u32, u32) = (0, 255);
+    pub const PIXEL_DELAY_MS: (u32, u32) = (0, 600_000);
+    pub const PIXEL_TRIGGER_MODES: [&str; 2] = ["line", "points"];
+    pub const PIXEL_TRIGGER_MAX_ITEMS: usize = 16;
+    pub const RECAST_AFTER_MATCHES: (u32, u32) = (0, 9_999);
+    pub const PIXEL_HOLD_MS: (u32, u32) = (0, 10_000);
+    pub const RECAST_MAX_STEPS: usize = 8;
+    pub const MOUSE_BUTTONS: [&str; 3] = ["Left", "Right", "Middle"];
 }
 
 /// Non-finite input falls back to `min`: `f64::clamp` propagates NaN, and an
@@ -359,6 +583,128 @@ fn is_hex_color(value: &str) -> bool {
 }
 
 impl ClickerSettings {
+    fn sanitize_pixel_trigger(&mut self) {
+        sanitize_choice(
+            "pixelTriggerMode",
+            &mut self.pixel_trigger_mode,
+            &limits::PIXEL_TRIGGER_MODES,
+            "line",
+        );
+        clamp_u32(
+            "pixelTriggerCooldownMs",
+            &mut self.pixel_trigger_cooldown_ms,
+            limits::PIXEL_DELAY_MS,
+        );
+
+        let line = &mut self.pixel_trigger_line;
+        clamp_u32(
+            "pixelTriggerLine.anchorTolerance",
+            &mut line.anchor_tolerance,
+            limits::PIXEL_TOLERANCE,
+        );
+        clamp_u32(
+            "pixelTriggerLine.checkTolerance",
+            &mut line.check_tolerance,
+            limits::PIXEL_TOLERANCE,
+        );
+        if !is_hex_color(&line.anchor_color) {
+            line.anchor_color = default_white();
+        }
+        if !is_hex_color(&line.check_color) {
+            line.check_color = default_green();
+        }
+
+        self.pixel_trigger_points
+            .truncate(limits::PIXEL_TRIGGER_MAX_ITEMS);
+        for point in &mut self.pixel_trigger_points {
+            clamp_u32(
+                "pixelTriggerPoints[].tolerance",
+                &mut point.tolerance,
+                limits::PIXEL_TOLERANCE,
+            );
+            if !is_hex_color(&point.color) {
+                point.color = default_white();
+            }
+        }
+
+        let recast = &mut self.pixel_trigger_recast;
+        clamp_u32(
+            "pixelTriggerRecast.afterMatches",
+            &mut recast.after_matches,
+            limits::RECAST_AFTER_MATCHES,
+        );
+        clamp_u32(
+            "pixelTriggerRecast.delayMs",
+            &mut recast.delay_ms,
+            limits::PIXEL_DELAY_MS,
+        );
+        clamp_u32(
+            "pixelTriggerRecast.idleTimeoutMs",
+            &mut recast.idle_timeout_ms,
+            limits::PIXEL_DELAY_MS,
+        );
+        clamp_u32(
+            "pixelTriggerRecast.delayMaxMs",
+            &mut recast.delay_max_ms,
+            limits::PIXEL_DELAY_MS,
+        );
+        sanitize_choice(
+            "pixelTriggerRecast.button",
+            &mut recast.button,
+            &limits::MOUSE_BUTTONS,
+            "Right",
+        );
+        recast.steps.truncate(limits::RECAST_MAX_STEPS);
+        for step in &mut recast.steps {
+            clamp_u32(
+                "pixelTriggerRecast.steps[].delayMs",
+                &mut step.delay_ms,
+                limits::PIXEL_DELAY_MS,
+            );
+            clamp_u32(
+                "pixelTriggerRecast.steps[].delayMaxMs",
+                &mut step.delay_max_ms,
+                limits::PIXEL_DELAY_MS,
+            );
+            sanitize_choice(
+                "pixelTriggerRecast.steps[].button",
+                &mut step.button,
+                &limits::MOUSE_BUTTONS,
+                "Left",
+            );
+        }
+
+        self.pixel_trigger_actions
+            .truncate(limits::PIXEL_TRIGGER_MAX_ITEMS);
+        for action in &mut self.pixel_trigger_actions {
+            clamp_u32(
+                "pixelTriggerActions[].delayMs",
+                &mut action.delay_ms,
+                limits::PIXEL_DELAY_MS,
+            );
+            clamp_u32(
+                "pixelTriggerActions[].delayMaxMs",
+                &mut action.delay_max_ms,
+                limits::PIXEL_DELAY_MS,
+            );
+        }
+        clamp_u32(
+            "pixelTriggerCooldownMaxMs",
+            &mut self.pixel_trigger_cooldown_max_ms,
+            limits::PIXEL_DELAY_MS,
+        );
+        clamp_u32(
+            "pixelTriggerHoldMs",
+            &mut self.pixel_trigger_hold_ms,
+            limits::PIXEL_HOLD_MS,
+        );
+        clamp_u32(
+            "pixelTriggerHoldMaxMs",
+            &mut self.pixel_trigger_hold_max_ms,
+            limits::PIXEL_HOLD_MS,
+        );
+    }
+
     /// Pin every numeric field to the range the frontend already enforces.
     ///
     /// IPC arguments arrive as JSON, where serde checks the type and nothing
@@ -426,6 +772,13 @@ impl ClickerSettings {
                 "stop",
             );
         }
+        self.sanitize_pixel_trigger();
+        clamp_u32(
+            "startDelayMs",
+            &mut self.start_delay_ms,
+            limits::START_DELAY_MS,
+        );
+
         if self.stop_zones.len() > limits::STOP_ZONE_MAX_COUNT {
             log::warn!(
                 "[Settings] stopZones has {} entries, keeping the first {}",
@@ -608,6 +961,109 @@ mod tests {
         assert_eq!(settings.click_points[0].radius, 9_999);
         assert_eq!(settings.click_points[1].clicks, 999_999);
         assert_eq!(settings.click_points[1].radius, 10);
+    }
+
+    #[test]
+    fn old_payload_without_pixel_trigger_fields_loads_defaults() {
+        let mut payload = serde_json::to_value(ClickerSettings::default()).unwrap();
+        let object = payload.as_object_mut().unwrap();
+        for key in [
+            "pixelTriggerEnabled",
+            "pixelTriggerMode",
+            "pixelTriggerLine",
+            "pixelTriggerPoints",
+            "pixelTriggerActions",
+            "pixelTriggerCooldownMs",
+            "pixelTriggerRecast",
+            "pixelTriggerRandomize",
+            "pixelTriggerCooldownMaxMs",
+            "pixelTriggerHoldMs",
+            "pixelTriggerHoldMaxMs",
+            "startDelayMs",
+        ] {
+            assert!(object.remove(key).is_some(), "{key} should be serialized");
+        }
+        let restored: ClickerSettings = serde_json::from_value(payload).unwrap();
+        assert!(!restored.pixel_trigger_enabled);
+        assert_eq!(restored.pixel_trigger_mode, "line");
+        assert_eq!(
+            restored.pixel_trigger_line,
+            PixelTriggerLineSettings::default()
+        );
+        assert_eq!(restored.pixel_trigger_cooldown_ms, 1_000);
+        assert_eq!(restored.start_delay_ms, 0);
+        assert_eq!(
+            restored.pixel_trigger_recast,
+            PixelTriggerRecastSettings::default()
+        );
+    }
+
+    #[test]
+    fn sanitize_bounds_recast_fields() {
+        let settings = sanitized(|s| {
+            s.pixel_trigger_recast.after_matches = u32::MAX;
+            s.pixel_trigger_recast.delay_ms = u32::MAX;
+            s.pixel_trigger_recast.idle_timeout_ms = u32::MAX;
+            s.pixel_trigger_recast.button = String::from("Thumb");
+            s.pixel_trigger_recast.steps = (0..20)
+                .map(|i| PixelTriggerRecastStepSettings {
+                    id: i.to_string(),
+                    x: i,
+                    y: i,
+                    button: String::from("Thumb"),
+                    delay_ms: u32::MAX,
+                    delay_max_ms: 5,
+                })
+                .collect();
+        });
+        let r = &settings.pixel_trigger_recast;
+        assert_eq!(r.after_matches, 9_999);
+        assert_eq!(r.delay_ms, 600_000);
+        assert_eq!(r.idle_timeout_ms, 600_000);
+        assert_eq!(r.button, "Right");
+        assert_eq!(r.steps.len(), 8);
+        assert_eq!(r.steps[0].button, "Left");
+        assert_eq!(r.steps[0].delay_ms, 600_000);
+    }
+
+    #[test]
+    fn sanitize_bounds_pixel_trigger_fields() {
+        let settings = sanitized(|s| {
+            s.pixel_trigger_mode = String::from("bogus");
+            s.pixel_trigger_cooldown_ms = u32::MAX;
+            s.pixel_trigger_line.anchor_tolerance = 9_999;
+            s.pixel_trigger_line.check_color = String::from("green");
+            s.start_delay_ms = u32::MAX;
+            s.pixel_trigger_points = (0..40)
+                .map(|i| PixelTriggerPointSettings {
+                    id: i.to_string(),
+                    x: i,
+                    y: i,
+                    color: String::from("#zzzzzz"),
+                    tolerance: 999,
+                    negate: false,
+                })
+                .collect();
+            s.pixel_trigger_actions = vec![PixelTriggerActionSettings {
+                id: String::new(),
+                x: 1,
+                y: 2,
+                delay_ms: u32::MAX,
+                delay_max_ms: u32::MAX,
+            }];
+            s.pixel_trigger_hold_max_ms = u32::MAX;
+        });
+        assert_eq!(settings.pixel_trigger_mode, "line");
+        assert_eq!(settings.pixel_trigger_cooldown_ms, 600_000);
+        assert_eq!(settings.pixel_trigger_line.anchor_tolerance, 255);
+        assert_eq!(settings.pixel_trigger_line.check_color, default_green());
+        assert_eq!(settings.start_delay_ms, 60_000);
+        assert_eq!(settings.pixel_trigger_points.len(), 16);
+        assert_eq!(settings.pixel_trigger_points[0].tolerance, 255);
+        assert_eq!(settings.pixel_trigger_points[0].color, default_white());
+        assert_eq!(settings.pixel_trigger_actions[0].delay_ms, 600_000);
+        assert_eq!(settings.pixel_trigger_actions[0].delay_max_ms, 600_000);
+        assert_eq!(settings.pixel_trigger_hold_max_ms, 10_000);
     }
 
     #[test]

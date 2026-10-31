@@ -8,13 +8,15 @@ export type KeyboardKeyCase = "lower" | "upper";
 export type ClickMode = "Toggle" | "Hold";
 export type DutyCycleMode = "Click" | "Hold";
 export type TimeLimitUnit = "s" | "m" | "h";
-export type SavedPanel = "simple" | "advanced" | "zones" | "click-points";
+export type SavedPanel =
+  "simple" | "advanced" | "zones" | "click-points" | "trigger";
 export type Theme = "dark" | "light" | "custom";
 export type IconTheme = "auto" | "dark" | "light";
 export type IconColor = "theme" | "default";
 export type PresetId = string;
 export type RateInputMode = "rate" | "duration";
 export type ProcessListMode = "whitelist" | "blacklist";
+export type PixelTriggerMode = "line" | "points";
 export type IndicatorCorner =
   "top-right" | "top-left" | "bottom-right" | "bottom-left";
 export type IndicatorColorMode = "theme" | "black" | "white" | "custom";
@@ -39,6 +41,88 @@ export interface ClickPoint {
   clicks: number;
   radius: number;
 }
+
+/** Line mode: anchor colour on line A, check colour on line B in the same column. */
+export interface PixelTriggerLine {
+  x1: number;
+  x2: number;
+  anchorY: number;
+  checkY: number;
+  anchorColor: string;
+  anchorTolerance: number;
+  checkColor: string;
+  checkTolerance: number;
+}
+
+export interface PixelTriggerPoint {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  tolerance: number;
+  negate: boolean;
+}
+
+export interface PixelTriggerAction {
+  id: string;
+  x: number;
+  y: number;
+  delayMs: number;
+  /** Upper bound when random timings are on. */
+  delayMaxMs: number;
+}
+
+/** Separate "throw the line again" click. */
+/** One click of the recast sequence. */
+export interface PixelTriggerRecastStep {
+  id: string;
+  x: number;
+  y: number;
+  button: MouseButton;
+  /** Wait before this click. */
+  delayMs: number;
+  /** Upper bound when random timings are on. */
+  delayMaxMs: number;
+}
+
+/**
+ * "Throw the line again" as a click sequence. Extra steps can first close
+ * notifications or popups (anti-disruption), then the cast click follows.
+ */
+export interface PixelTriggerRecast {
+  enabled: boolean;
+  /** Recast after this many matches (0 = only the idle fallback). */
+  afterMatches: number;
+  /** Recast when nothing matched for this long (0 = off). */
+  idleTimeoutMs: number;
+  steps: PixelTriggerRecastStep[];
+}
+
+export const DEFAULT_PIXEL_TRIGGER_RECAST: PixelTriggerRecast = {
+  enabled: false,
+  afterMatches: 3,
+  idleTimeoutMs: 0,
+  steps: [],
+};
+export const RECAST_MAX_STEPS = 8;
+export const RECAST_AFTER_MATCHES_LIMIT = { min: 0, max: 9999 };
+
+export const PIXEL_TRIGGER_MAX_ITEMS = 16;
+export const PIXEL_TOLERANCE_LIMIT = { min: 0, max: 255 };
+export const PIXEL_DELAY_LIMIT = { min: 0, max: 600000 };
+export const PIXEL_HOLD_LIMIT = { min: 0, max: 10000 };
+const PIXEL_COORD_LIMIT = 99999;
+
+export const DEFAULT_PIXEL_TRIGGER_LINE: PixelTriggerLine = {
+  x1: 0,
+  x2: 0,
+  anchorY: 0,
+  checkY: 0,
+  anchorColor: "#ffffff",
+  anchorTolerance: 30,
+  checkColor: "#06c105",
+  checkTolerance: 40,
+};
 
 export interface StopZone {
   id: string;
@@ -318,6 +402,54 @@ const PRESET_FIELDS = {
     default: [] as ProcessListEntry[],
     ui: { section: "failsafe", control: "custom" },
   },
+  pixelTriggerEnabled: {
+    default: false,
+    ui: { section: "core", control: "toggle" },
+  },
+  pixelTriggerMode: {
+    default: "line" as PixelTriggerMode,
+    ui: { section: "core", control: "select" },
+  },
+  pixelTriggerLine: {
+    default: DEFAULT_PIXEL_TRIGGER_LINE as PixelTriggerLine,
+    ui: { section: "core", control: "custom" },
+  },
+  pixelTriggerPoints: {
+    default: [] as PixelTriggerPoint[],
+    ui: { section: "core", control: "custom" },
+  },
+  pixelTriggerActions: {
+    default: [] as PixelTriggerAction[],
+    ui: { section: "core", control: "custom" },
+  },
+  pixelTriggerCooldownMs: {
+    default: 1000,
+    limit: PIXEL_DELAY_LIMIT,
+    ui: { section: "core", control: "number" },
+  },
+  pixelTriggerRecast: {
+    default: DEFAULT_PIXEL_TRIGGER_RECAST as PixelTriggerRecast,
+    ui: { section: "core", control: "custom" },
+  },
+  pixelTriggerRandomize: {
+    default: false,
+    ui: { section: "core", control: "toggle" },
+  },
+  pixelTriggerCooldownMaxMs: {
+    default: 1500,
+    limit: PIXEL_DELAY_LIMIT,
+    ui: { section: "core", control: "number" },
+  },
+  pixelTriggerHoldMs: {
+    default: 35,
+    limit: PIXEL_HOLD_LIMIT,
+    ui: { section: "core", control: "number" },
+  },
+  pixelTriggerHoldMaxMs: {
+    default: 60,
+    limit: PIXEL_HOLD_LIMIT,
+    ui: { section: "core", control: "number" },
+  },
 } satisfies Record<string, FieldDef<unknown>>;
 
 //All Other settings that do not need to be saved by presets go here.
@@ -460,6 +592,19 @@ const SETTINGS_ONLY_FIELDS = {
   newClickPointRadius: {
     default: 0,
     limit: { min: 0, max: 9999 },
+    ui: { section: "behavior", control: "number" },
+  },
+  pixelTriggerOverlay: {
+    default: true,
+    ui: { section: "behavior", control: "toggle" },
+  },
+  pixelTriggerLiveColor: {
+    default: false,
+    ui: { section: "behavior", control: "toggle" },
+  },
+  startDelayMs: {
+    default: 0,
+    limit: { min: 0, max: 60000 },
     ui: { section: "behavior", control: "number" },
   },
   accentColor: {
@@ -914,6 +1059,20 @@ export type Settings = PresetFieldValues &
     version: string;
   };
 
+const FACTORY_PIXEL_TRIGGER = {
+  pixelTriggerEnabled: false,
+  pixelTriggerMode: "line" as PixelTriggerMode,
+  pixelTriggerLine: DEFAULT_PIXEL_TRIGGER_LINE,
+  pixelTriggerPoints: [] as PixelTriggerPoint[],
+  pixelTriggerActions: [] as PixelTriggerAction[],
+  pixelTriggerCooldownMs: 1000,
+  pixelTriggerRecast: DEFAULT_PIXEL_TRIGGER_RECAST,
+  pixelTriggerRandomize: false,
+  pixelTriggerCooldownMaxMs: 1500,
+  pixelTriggerHoldMs: 35,
+  pixelTriggerHoldMaxMs: 60,
+};
+
 export const FACTORY_PRESETS: PresetDefinition[] = [
   {
     id: "factory-standard",
@@ -957,6 +1116,7 @@ export const FACTORY_PRESETS: PresetDefinition[] = [
       processListEnabled: false,
       processListMode: "whitelist",
       processListEntries: [],
+      ...FACTORY_PIXEL_TRIGGER,
     },
   },
   {
@@ -1001,6 +1161,7 @@ export const FACTORY_PRESETS: PresetDefinition[] = [
       processListEnabled: false,
       processListMode: "whitelist",
       processListEntries: [],
+      ...FACTORY_PIXEL_TRIGGER,
     },
   },
   {
@@ -1045,6 +1206,7 @@ export const FACTORY_PRESETS: PresetDefinition[] = [
       processListEnabled: false,
       processListMode: "whitelist",
       processListEntries: [],
+      ...FACTORY_PIXEL_TRIGGER,
     },
   },
 ];
@@ -1227,6 +1389,7 @@ function sanitizeSavedPanel(value: unknown, fallback: SavedPanel) {
     "advanced",
     "zones",
     "click-points",
+    "trigger",
   ]);
 }
 
@@ -1255,6 +1418,187 @@ function sanitizeProcessListEntries(value: unknown): ProcessListEntry[] {
       return { name, enabled };
     })
     .filter((entry): entry is ProcessListEntry => entry !== null);
+}
+
+function createPixelTriggerId(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `px-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  );
+}
+
+function sanitizeCoord(value: unknown): number {
+  return Math.trunc(
+    clampNumber(value, 0, -PIXEL_COORD_LIMIT, PIXEL_COORD_LIMIT),
+  );
+}
+
+function sanitizeTolerance(value: unknown, fallback: number): number {
+  return Math.trunc(
+    clampNumber(
+      value,
+      fallback,
+      PIXEL_TOLERANCE_LIMIT.min,
+      PIXEL_TOLERANCE_LIMIT.max,
+    ),
+  );
+}
+
+export function sanitizePixelTriggerLine(value: unknown): PixelTriggerLine {
+  const d = DEFAULT_PIXEL_TRIGGER_LINE;
+  if (!value || typeof value !== "object") return { ...d };
+  const v = value as Partial<PixelTriggerLine>;
+  return {
+    x1: sanitizeCoord(v.x1),
+    x2: sanitizeCoord(v.x2),
+    anchorY: sanitizeCoord(v.anchorY),
+    checkY: sanitizeCoord(v.checkY),
+    anchorColor: sanitizeHexColor(v.anchorColor, d.anchorColor),
+    anchorTolerance: sanitizeTolerance(v.anchorTolerance, d.anchorTolerance),
+    checkColor: sanitizeHexColor(v.checkColor, d.checkColor),
+    checkTolerance: sanitizeTolerance(v.checkTolerance, d.checkTolerance),
+  };
+}
+
+export function sanitizePixelTriggerPoints(
+  value: unknown,
+): PixelTriggerPoint[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (item): item is Partial<PixelTriggerPoint> =>
+        !!item && typeof item === "object",
+    )
+    .slice(0, PIXEL_TRIGGER_MAX_ITEMS)
+    .map((p) => ({
+      id: typeof p.id === "string" && p.id ? p.id : createPixelTriggerId(),
+      x: sanitizeCoord(p.x),
+      y: sanitizeCoord(p.y),
+      color: sanitizeHexColor(p.color, "#ffffff"),
+      tolerance: sanitizeTolerance(p.tolerance, 30),
+      negate: sanitizeBoolean(p.negate, false),
+    }));
+}
+
+export function sanitizePixelTriggerActions(
+  value: unknown,
+): PixelTriggerAction[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (item): item is Partial<PixelTriggerAction> =>
+        !!item && typeof item === "object",
+    )
+    .slice(0, PIXEL_TRIGGER_MAX_ITEMS)
+    .map((a) => ({
+      id: typeof a.id === "string" && a.id ? a.id : createPixelTriggerId(),
+      x: sanitizeCoord(a.x),
+      y: sanitizeCoord(a.y),
+      delayMs: Math.trunc(
+        clampNumber(a.delayMs, 0, PIXEL_DELAY_LIMIT.min, PIXEL_DELAY_LIMIT.max),
+      ),
+      delayMaxMs: Math.trunc(
+        clampNumber(
+          a.delayMaxMs,
+          0,
+          PIXEL_DELAY_LIMIT.min,
+          PIXEL_DELAY_LIMIT.max,
+        ),
+      ),
+    }));
+}
+
+export function sanitizePixelTriggerRecast(value: unknown): PixelTriggerRecast {
+  const d = DEFAULT_PIXEL_TRIGGER_RECAST;
+  if (!value || typeof value !== "object") return { ...d, steps: [] };
+  const v = value as Partial<PixelTriggerRecast> & {
+    // Single-click recast from before sequences existed.
+    x?: unknown;
+    y?: unknown;
+    button?: unknown;
+    delayMs?: unknown;
+    delayMaxMs?: unknown;
+  };
+  const ms = (raw: unknown, fallback: number) =>
+    Math.trunc(
+      clampNumber(raw, fallback, PIXEL_DELAY_LIMIT.min, PIXEL_DELAY_LIMIT.max),
+    );
+
+  let rawSteps: unknown[] = Array.isArray(v.steps) ? v.steps : [];
+  if (!Array.isArray(v.steps)) {
+    const x = sanitizeCoord(v.x);
+    const y = sanitizeCoord(v.y);
+    if (x !== 0 || y !== 0) {
+      rawSteps = [
+        {
+          x,
+          y,
+          button: sanitizeEnum(v.button, "Right", MOUSE_BUTTON_OPTIONS),
+          delayMs: v.delayMs,
+          delayMaxMs: v.delayMaxMs ?? v.delayMs,
+        },
+      ];
+    }
+  }
+
+  const steps = rawSteps
+    .filter(
+      (item): item is Partial<PixelTriggerRecastStep> =>
+        !!item && typeof item === "object",
+    )
+    .slice(0, RECAST_MAX_STEPS)
+    .map((step) => ({
+      id:
+        typeof step.id === "string" && step.id
+          ? step.id
+          : createPixelTriggerId(),
+      x: sanitizeCoord(step.x),
+      y: sanitizeCoord(step.y),
+      button: sanitizeEnum(step.button, "Left", MOUSE_BUTTON_OPTIONS),
+      delayMs: ms(step.delayMs, 0),
+      delayMaxMs: ms(step.delayMaxMs, 0),
+    }));
+
+  return {
+    enabled: sanitizeBoolean(v.enabled, d.enabled),
+    afterMatches: Math.trunc(
+      clampNumber(
+        v.afterMatches,
+        d.afterMatches,
+        RECAST_AFTER_MATCHES_LIMIT.min,
+        RECAST_AFTER_MATCHES_LIMIT.max,
+      ),
+    ),
+    idleTimeoutMs: ms(v.idleTimeoutMs, d.idleTimeoutMs),
+    steps,
+  };
+}
+
+function sanitizePixelTriggerFields(
+  target: {
+    pixelTriggerMode: PixelTriggerMode;
+    pixelTriggerLine: PixelTriggerLine;
+    pixelTriggerPoints: PixelTriggerPoint[];
+    pixelTriggerActions: PixelTriggerAction[];
+    pixelTriggerRecast: PixelTriggerRecast;
+  },
+  saved: Record<string, unknown>,
+  fallbackMode: PixelTriggerMode,
+) {
+  target.pixelTriggerMode = sanitizeEnum(saved.pixelTriggerMode, fallbackMode, [
+    "line",
+    "points",
+  ]);
+  target.pixelTriggerLine = sanitizePixelTriggerLine(saved.pixelTriggerLine);
+  target.pixelTriggerPoints = sanitizePixelTriggerPoints(
+    saved.pixelTriggerPoints,
+  );
+  target.pixelTriggerActions = sanitizePixelTriggerActions(
+    saved.pixelTriggerActions,
+  );
+  target.pixelTriggerRecast = sanitizePixelTriggerRecast(
+    saved.pixelTriggerRecast,
+  );
 }
 
 function sanitizeClickPoints(value: unknown): ClickPoint[] {
@@ -1502,6 +1846,7 @@ export function sanitizePresetSnapshot(
   snapshot.processListEntries = sanitizeProcessListEntries(
     saved.processListEntries,
   );
+  sanitizePixelTriggerFields(snapshot, saved, defaults.pixelTriggerMode);
   migrateSpeedRandomization(snapshot, saved, defaults);
 
   return snapshot;
@@ -1612,6 +1957,11 @@ export function sanitizeSettings(
   }
   presetSettings.processListEntries = sanitizeProcessListEntries(
     saved.processListEntries,
+  );
+  sanitizePixelTriggerFields(
+    presetSettings,
+    savedRecord,
+    defaults.pixelTriggerMode,
   );
   migrateSpeedRandomization(presetSettings, savedRecord, defaults);
 

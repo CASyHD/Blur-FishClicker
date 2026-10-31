@@ -252,6 +252,16 @@ body {
   }
 }
 
+.app-root[data-tab="trigger"] .panel-area {
+  animation: panel-enable-scroll-trigger 0.01s 350ms forwards;
+}
+
+@keyframes panel-enable-scroll-trigger {
+  to {
+    overflow: auto;
+  }
+}
+
 @keyframes panel-enable-scroll-click-points {
   to {
     overflow: auto;

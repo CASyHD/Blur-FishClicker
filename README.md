@@ -1,108 +1,84 @@
-<div align="center">
-  <p align="center">
-    <a href="https://github.com/Blur009/Blur-AutoClicker/releases"><img src="https://img.shields.io/github/downloads/Blur009/Blur-AutoClicker/total?style=for-the-badge&label=downloads" alt="Downloads"></a>
-    <img src="https://img.shields.io/github/package-json/v/Blur009/Blur-AutoClicker?style=for-the-badge&label=version" alt="Version">
-    <img src="https://img.shields.io/github/license/Blur009/Blur-AutoClicker?style=for-the-badge" alt="License">
-    <img src="https://img.shields.io/github/stars/Blur009/Blur-AutoClicker?style=for-the-badge&label=stars" alt="Stars">
-    <a href="https://discord.gg/jhWEW747x5"><img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
-  </p>
+# Blur FishClicker
 
-  
-
-  # Blur Auto Clicker
-
-
-  <img src="https://github.com/Blur009/Blur-AutoClicker/blob/main/public/V3.0.0_UI.png" width="600"/>
-
-  <p align="center"><em>An auto clicker that actually clicks at the speed you set.</em></p>
-  
-  <a href="https://ko-fi.com/blur009">
-    <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Donate on Ko-fi" width="350">
-  </a>
-
-  ---
-
-  <a href="#features">Features</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#faq">FAQ</a> ·
-  <a href="#license">License</a>
-  
-  
-
-</div>
-
----
-Most auto clickers aren't accurate at high speeds. Set it to 50 CPS and you might get 40. Or 60. This one actually hits the speed you set. It also bundles the useful features from other auto clickers into one place, and adds a few extras. RAM is around 100mb and stays under 200mb (yes its a lot but sadly it cant be reduced due to Webview2).
+> **Unofficial fork** of [Blur-AutoClicker](https://github.com/Blur009/Blur-AutoClicker) by [Blur009](https://github.com/Blur009).
+> All core features (Simple/Advanced mode, hotkeys, click points, zones, presets …) come from the original –
+> see the original repo for its documentation, releases and support. This fork adds a **pixel trigger** and a few extras.
+> Please do **not** report issues that only affect this fork to the original project.
 
 ---
 
-## Features
+## What this fork adds
 
-**Simple Mode:**
-- On/off indicator (logo turns green when running)
-- Left, right, or middle mouse button
-- Keyboard key pressing with case control
-- Hold or toggle activation
-- Customizable hotkeys
+### 🎯 Pixel Trigger (new "Trigger" tab)
+Watches screen pixels and clicks as soon as a colour condition is met – e.g. timing/fishing mini-games where a marker
+slides over a target zone. While enabled it replaces the normal click speed; start/stop with your usual hotkey.
 
-**Advanced Mode** (everything in Simple, plus):
-- Adjustable click timing (duty cycle)
-- Random CPS within a range
-- Corner and edge stopping (auto-off near screen edges)
-- Click and time limits
-- Double clicks
-- Position clicking (pick a spot, mouse moves and clicks there)
-- Per second, minute, hour, or day
+- **Line match** – line A (marker, e.g. a white arrow) and line B (target zone, e.g. a green area).
+  Blur finds the marker on line A and clicks when line B has the target colour **in the same column**.
+  Works even when the target zone moves.
+- **Pixel match** – up to 16 fixed pixels that must all have (or, with "not", must *not* have) their colour at the same time.
+- Colour + tolerance per line/pixel, millisecond polling (GDI capture of only the strip that is needed).
+- Live **MATCH / no match** status including the detected marker position.
 
+### 🖱️ Click sequence on match ("On Match")
+- Several click positions in a row, each with its own wait before it.
+- **Cooldown** after the sequence and an adjustable mouse-button **hold time**.
 
-## Quick Start
+### 🔁 Recast sequence / anti-disruption
+- Recasts after **N matches** – or when **nothing matched for X ms** (idle fallback, also fires right after starting).
+- Up to **8 steps**, each with its own position, mouse button (L/R/M) and wait, reorderable.
+  Use it to click away notifications/popups first and then cast.
 
-<a href="https://github.com/Blur009/Blur-AutoClicker/releases/latest">
-  <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="50">
-</a>
+### 🎲 Random timings
+- Optionally use a **range** instead of a fixed value for every wait, the cooldown, the recast steps and the hold time (e.g. 50–100 ms).
 
-Installed to `%localappdata%/BlurAutoClicker/BlurAutoClicker.exe`.  
-Config and stats are saved in `%appdata%/BlurAutoClicker`.
+### 🧭 Usability & display
+- **Right-click picker** to capture position + colour (the right click is swallowed, Esc cancels).
+- **On-screen overlay** (can be turned off): lines A/B, pixels, click and recast positions with labels.
+  Markers are drawn *next to* the sampled pixels so they never affect detection.
+- Optional **live colour readout** under the cursor (off by default).
+- **Self-click protection:** positions on the Blur window are rejected when capturing and blocked (with a stop message) when clicking.
+- All trigger settings are stored in **presets**.
 
-> On version 2.1.2 or below? Delete the old executable first — the installer won't do it. Old configs won't work with v3+, they'll be deleted on first launch.
+### ⏱️ Start delay
+- *Settings → Behaviour → Start Delay*: waits X ms after the hotkey before the first click (press the hotkey again to cancel).
+
+---
+
+## Quick start (fishing mini-game example)
+
+1. Open the **Trigger** tab, mode **Line match**.
+2. **Line A → Capture**: right-click at the height of the marker (set the colour to `#ffffff` if needed).
+3. **Line B → Capture**: right-click inside the target zone.
+4. **Capture left / right**: left and right end of the bar.
+5. Check: status/overlay shows **MATCH** while the marker is inside the zone.
+6. **On Match**: capture your click position(s). **Recast**: capture the steps (e.g. close popup → right-click to cast) and set *After matches* and/or *Recast if idle for*.
+7. Turn the trigger **On** and press your hotkey.
+
+Windowed or borderless mode is recommended – reading pixels may fail in exclusive fullscreen.
 
 ---
 
-## FAQ
+## Building
 
-<details>
-<summary><b>Why is CPS capped at 500?</b></summary>
+Requirements (Windows): Node.js 20+, Rust (MSVC toolchain), Visual Studio Build Tools (C++), WebView2.
+See [BUILDING.md](BUILDING.md) for details.
 
-Windows has a limit of around 500 CPS for mouse events. The timer resolution bottoms out at about 1ms (1000 CPS), but Windows also needs to do other things, so the practical limit is around 800 CPS. Since I can't guarantee that on every machine, it's set to 500. (A 1000 cps setting is available but not recommended.)
-</details>
-
-<details>
-<summary><b>Windows SmartScreen warning?</b></summary>
-
-The installer isn't signed, so Windows may show a SmartScreen warning. Tauri updater signing is separate from Windows Authenticode signing. See <a href="docs/windows-release-trust.md">docs/windows-release-trust.md</a> for details.
-</details>
-
-<details>
-<summary><b>Can I build from source?</b></summary>
-
-Yes — see <a href="BUILDING.md">BUILDING.md</a> for setup, build, and validation commands. For contributing guidelines, see <a href="CONTRIBUTING.md">CONTRIBUTING.md</a>.
-</details>
+```powershell
+npm ci
+npm run dev      # development
+npm run build    # installer -> src-tauri\target\release\bundle\nsis\
+```
 
 ---
+
+## Notes
+
+- Use at your own risk. Automation may violate the terms of service of individual games or websites.
+- Not an official Blur009 product.
 
 ## License
 
-Licensed under the [GNU General Public License](LICENSE).
-
-## Note
-This project has been accepted into Windows Package Manager (winget). You can install it with the command:
-
-```powershell
-winget install -e --id Blur009.BlurAutoClicker --source winget --silent
-```
----
-It has also been accepted into **Chris Titus Tech's winutils**.
-https://github.com/ChrisTitusTech/winutil/pull/4383
-
----
-This project is not code signed, so Windows may show a SmartScreen warning. See [microsoft](https://learn.microsoft.com/en-us/windows/security/operating-system-security/virus-and-threat-protection/microsoft-defender-smartscreen/) for information on SmartScreen. Importantly, a SmartScreen warning does not mean the software is malicious, it just means it is not code signed which is an expensive process.
+Like the original, licensed under the [GNU General Public License v3.0](LICENSE).
+This fork is a **modified version** of Blur-AutoClicker (© Blur009); the changes (pixel trigger, recast, random timings, overlay, start delay) were made in 2026 by CASyHD.
+Original: https://github.com/Blur009/Blur-AutoClicker
