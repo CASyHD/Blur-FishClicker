@@ -34,7 +34,7 @@ const UPDATE_BUTTON_LABELS = {
 const KOFI_URL = "https://ko-fi.com/Z8Z71T8QD4";
 const YOUTUBE_URL = "https://youtube.com/@Blur009";
 const TWITCH_URL = "https://twitch.tv/Blur009";
-const GITHUB_URL = "https://github.com/Blur009/Blur-AutoClicker";
+const GITHUB_URL = "https://github.com/CASyHD/Blur-FishClicker";
 const DISCORD_URL = "https://discord.gg/jhWEW747x5";
 
 const KOFI_IMG_STYLE: CSSProperties = { border: 0, height: "28px" };

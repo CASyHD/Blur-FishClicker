@@ -153,8 +153,9 @@ fn resend_cached_payloads(app: &AppHandle) {
 
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetWindowLongW, SetWindowLongW, SetWindowPos, ShowWindow, GWL_EXSTYLE, GWL_STYLE, HWND_TOPMOST,
-    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW,
+    GetWindowLongW, SetWindowDisplayAffinity, SetWindowLongW, SetWindowPos, ShowWindow,
+    GWL_EXSTYLE, GWL_STYLE, HWND_TOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+    SWP_NOZORDER, SWP_SHOWWINDOW, WDA_EXCLUDEFROMCAPTURE,
 };
 
 #[cfg(target_os = "windows")]
@@ -638,6 +639,17 @@ fn apply_win32_styles(window: &tauri::WebviewWindow) -> AppResult<()> {
             0,
             SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER,
         );
+
+        // Keep the overlay out of screen capture. The pixel trigger reads the
+        // composed desktop with BitBlt; without this, picker prompts, click
+        // point dots or trigger lines under the cursor would be sampled
+        // instead of the game. Needs Windows 10 2004+, otherwise it fails
+        // harmlessly and the overlay stays capturable.
+        if SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE) == 0 {
+            log::warn!(
+                "[Overlay] SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE) failed, overlay stays visible to screen capture"
+            );
+        }
     }
 
     log::info!("[Overlay] Win32 styles applied");

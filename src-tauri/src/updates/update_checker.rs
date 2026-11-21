@@ -37,7 +37,7 @@ struct GithubRelease {
 
 #[tauri::command]
 pub async fn fetch_changelog() -> AppResult<String> {
-    let url = "https://raw.githubusercontent.com/Blur009/Blur-AutoClicker/main/CHANGELOG.md";
+    let url = "https://raw.githubusercontent.com/CASyHD/Blur-FishClicker/main/CHANGELOG.md";
     let client = http_client();
 
     let response = client

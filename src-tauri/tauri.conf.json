@@ -27,7 +27,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/Blur009/Blur-AutoClicker/releases/latest/download/latest.json"
+        "https://github.com/CASyHD/Blur-FishClicker/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIyREY0RTc2QTU4Qjc1N0UKUldSK2RZdWxkazdmSW1IQmI4ZVMwOTRzWnBiVENhMFNYMFRtN0V4R3N0Q2JXQUdqM2t4VnRnNUYK",
       "windows": {
@@ -38,13 +38,13 @@
   "bundle": {
     "active": true,
     "targets": "nsis",
-    "createUpdaterArtifacts": true,
-    "publisher": "Blur009",
-    "copyright": "Copyright (c) Blur009",
+    "createUpdaterArtifacts": false,
+    "publisher": "CASyHD (fork of Blur009/Blur-AutoClicker)",
+    "copyright": "Copyright (c) Blur009; modifications (c) CASyHD",
     "category": "Utility",
     "shortDescription": "Configurable auto clicker with accurate CPS timing.",
     "longDescription": "Performance-focused auto clicker with global hotkeys, optional overlay, and advanced timing. Licensed under GPLv3.",
-    "homepage": "https://github.com/Blur009/Blur-AutoClicker",
+    "homepage": "https://github.com/CASyHD/Blur-FishClicker",
     "resources": {
       "resources/*": ""
     },

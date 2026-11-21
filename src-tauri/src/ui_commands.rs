@@ -497,7 +497,18 @@ pub fn pixel_trigger_sample_at(
     x: i32,
     y: i32,
 ) -> Option<crate::engine::pixel_trigger::PixelSample> {
-    crate::engine::pixel_trigger::sample_at(&app, x, y)
+    let sample = crate::engine::pixel_trigger::sample_at(&app, x, y);
+    match &sample {
+        Some(s) => log::info!(
+            "[PixelTrigger] picked ({}, {}) colour {} on_own_window={}",
+            s.x,
+            s.y,
+            s.color,
+            s.on_own_window
+        ),
+        None => log::warn!("[PixelTrigger] pick at ({x}, {y}) could not read the pixel"),
+    }
+    sample
 }
 
 /// One live evaluation of the configured pixel trigger rule (UI preview).

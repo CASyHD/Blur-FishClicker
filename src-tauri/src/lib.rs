@@ -656,7 +656,7 @@ pub fn run() {
                     std::process::exit(1);
                 } else {
                     let msg = format!(
-                        "The application window could not be created.\n\n{0}\n\nIf reinstalling the app does not help, please report the issue at:\nhttps://github.com/Blur009/Blur-AutoClicker/issues",
+                        "The application window could not be created.\n\n{0}\n\nIf reinstalling the app does not help, please report the issue at:\nhttps://github.com/CASyHD/Blur-FishClicker/issues",
                         e
                     );
                     crate::portable::notify_fatal_error(&msg);
